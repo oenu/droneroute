@@ -35,6 +35,8 @@ A free, open-source mission planner for DJI drones. Plan waypoint missions on an
 
 DJI M300 RTK, M350 RTK, M30/M30T, Mavic 3E/3T/3M/3D/3TD, Mini 4 Pro.
 
+DroneRoute exports DJI Pilot/Pilot 2 and DJI Fly-compatible KMZ layouts based on the selected drone model.
+
 ## Getting Started
 
 You'll need **Node.js 22+** and **npm 10+**.

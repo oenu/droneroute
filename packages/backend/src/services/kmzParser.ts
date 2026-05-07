@@ -1,13 +1,18 @@
 import JSZip from "jszip";
 import { XMLParser } from "fast-xml-parser";
 import type {
-  Mission,
   Waypoint,
   MissionConfig,
   WaypointAction,
   PointOfInterest,
+  KmzProfile,
+  GimbalRotateParams,
 } from "@droneroute/shared";
-import { DEFAULT_MISSION_CONFIG, DEFAULT_WAYPOINT } from "@droneroute/shared";
+import {
+  DEFAULT_MISSION_CONFIG,
+  DEFAULT_WAYPOINT,
+  findDroneModelByMetadata,
+} from "@droneroute/shared";
 import { v4 as uuidv4 } from "uuid";
 
 const parser = new XMLParser({
@@ -41,11 +46,102 @@ function parseActions(placemark: any): WaypointAction[] {
       actions.push({
         actionId: parseInt(action["wpml:actionId"] || "0"),
         actionType: action["wpml:actionActuatorFunc"],
-        params: action["wpml:actionActuatorFuncParam"] || {},
+        params: normalizeActionParams(
+          action["wpml:actionActuatorFunc"],
+          action["wpml:actionActuatorFuncParam"] || {},
+        ),
       });
     }
   }
   return actions;
+}
+
+function normalizeActionParams(actionType: string, params: any): any {
+  switch (actionType) {
+    case "takePhoto":
+    case "startRecord":
+      return {
+        payloadPositionIndex: parseInt(
+          params["wpml:payloadPositionIndex"] || "0",
+        ),
+        fileSuffix: params["wpml:fileSuffix"] || "",
+      };
+    case "stopRecord":
+      return {
+        payloadPositionIndex: parseInt(
+          params["wpml:payloadPositionIndex"] || "0",
+        ),
+      };
+    case "gimbalRotate":
+      return {
+        gimbalPitchRotateAngle: parseFloat(
+          params["wpml:gimbalPitchRotateAngle"] || "0",
+        ),
+        gimbalYawRotateAngle: parseFloat(
+          params["wpml:gimbalYawRotateAngle"] || "0",
+        ),
+        gimbalRollRotateAngle: parseFloat(
+          params["wpml:gimbalRollRotateAngle"] || "0",
+        ),
+        gimbalRotateMode: params["wpml:gimbalRotateMode"] || "absoluteAngle",
+        payloadPositionIndex: parseInt(
+          params["wpml:payloadPositionIndex"] || "0",
+        ),
+      };
+    case "gimbalEvenlyRotate":
+      return {
+        gimbalPitchRotateAngle: parseFloat(
+          params["wpml:gimbalPitchRotateAngle"] || "-45",
+        ),
+        payloadPositionIndex: parseInt(
+          params["wpml:payloadPositionIndex"] || "0",
+        ),
+      };
+    case "rotateYaw":
+      return {
+        aircraftHeading: parseFloat(params["wpml:aircraftHeading"] || "0"),
+        aircraftPathMode: params["wpml:aircraftPathMode"] || "clockwise",
+      };
+    case "hover":
+      return {
+        hoverTime: parseFloat(params["wpml:hoverTime"] || "5"),
+      };
+    case "zoom":
+      return {
+        focalLength: parseFloat(params["wpml:focalLength"] || "24"),
+        focalFactor:
+          params["wpml:focalFactor"] != null
+            ? parseFloat(params["wpml:focalFactor"])
+            : undefined,
+        payloadPositionIndex: parseInt(
+          params["wpml:payloadPositionIndex"] || "0",
+        ),
+      };
+    case "focus":
+      return {
+        isPointFocus:
+          params["wpml:isPointFocus"] === "1" ||
+          params["wpml:isPointFocus"] === 1,
+        focusX:
+          params["wpml:focusX"] != null
+            ? parseFloat(params["wpml:focusX"])
+            : 0.5,
+        focusY:
+          params["wpml:focusY"] != null
+            ? parseFloat(params["wpml:focusY"])
+            : 0.5,
+        isInfiniteFocus:
+          params["wpml:isInfiniteFocus"] === "1" ||
+          params["wpml:isInfiniteFocus"] === 1,
+      };
+    default:
+      return params;
+  }
+}
+
+function isPlaceholderPoiPoint(poiPoint: string): boolean {
+  const parts = poiPoint.split(",").map((s) => parseFloat(s.trim()));
+  return parts.length >= 2 && parts.every((part) => Math.abs(part || 0) < 1e-9);
 }
 
 export async function parseKmz(buffer: Buffer): Promise<{
@@ -63,6 +159,17 @@ export async function parseKmz(buffer: Buffer): Promise<{
   }
 
   const templateXml = await templateFile.async("string");
+  const waylinesFile =
+    zip.file("waylines.wpml") || zip.file("wpmz/waylines.wpml");
+  const waylinesXml = waylinesFile
+    ? await waylinesFile.async("string")
+    : undefined;
+  const kmzProfile: KmzProfile =
+    templateXml.includes("http://www.uav.com/wpmz/1.0.2") ||
+    waylinesXml?.includes("http://www.uav.com/wpmz/1.0.2")
+      ? "djiFly"
+      : "standardWpml";
+
   const parsed = parser.parse(templateXml);
   const doc = parsed.kml.Document;
 
@@ -70,12 +177,29 @@ export async function parseKmz(buffer: Buffer): Promise<{
   const mc = doc["wpml:missionConfig"] || {};
   const droneInfo = mc["wpml:droneInfo"] || {};
   const payloadInfo = mc["wpml:payloadInfo"] || {};
+  const hasPayloadInfo = payloadInfo["wpml:payloadEnumValue"] != null;
+  const droneEnumValue = parseInt(droneInfo["wpml:droneEnumValue"] || "67");
+  const droneSubEnumValue = parseInt(
+    droneInfo["wpml:droneSubEnumValue"] || "0",
+  );
+  const payloadEnumValue = parseInt(
+    payloadInfo["wpml:payloadEnumValue"] || "52",
+  );
+  const inferredModel = findDroneModelByMetadata({
+    droneEnumValue,
+    droneSubEnumValue,
+    payloadEnumValue: hasPayloadInfo ? payloadEnumValue : undefined,
+  });
+  const compatibleInferredModel =
+    inferredModel?.kmzProfile === kmzProfile ? inferredModel : undefined;
 
   const config: MissionConfig = {
     ...DEFAULT_MISSION_CONFIG,
-    droneEnumValue: parseInt(droneInfo["wpml:droneEnumValue"] || "67"),
-    droneSubEnumValue: parseInt(droneInfo["wpml:droneSubEnumValue"] || "0"),
-    payloadEnumValue: parseInt(payloadInfo["wpml:payloadEnumValue"] || "52"),
+    droneModelId: compatibleInferredModel?.id,
+    droneEnumValue,
+    droneSubEnumValue,
+    payloadEnumValue,
+    kmzProfile,
     flyToWaylineMode: mc["wpml:flyToWaylineMode"] || "safely",
     finishAction: mc["wpml:finishAction"] || "goHome",
     exitOnRCLost: mc["wpml:exitOnRCLost"] || "executeLostAction",
@@ -92,10 +216,7 @@ export async function parseKmz(buffer: Buffer): Promise<{
 
   if (!folder) {
     // Try waylines.wpml for the actual waypoint data
-    const waylinesFile =
-      zip.file("waylines.wpml") || zip.file("wpmz/waylines.wpml");
-    if (waylinesFile) {
-      const waylinesXml = await waylinesFile.async("string");
+    if (waylinesXml) {
       const waylinesParsed = parser.parse(waylinesXml);
       folder = waylinesParsed.kml?.Document?.Folder;
     }
@@ -147,7 +268,7 @@ export async function parseKmz(buffer: Buffer): Promise<{
       const poiPoint = headingParam["wpml:waypointPoiPoint"];
       if (headingMode === "towardPOI" && poiPoint) {
         const poiKey = String(poiPoint);
-        if (!poiMap.has(poiKey)) {
+        if (!isPlaceholderPoiPoint(poiKey) && !poiMap.has(poiKey)) {
           const parts = poiKey.split(",").map((s) => parseFloat(s.trim()));
           const poi: PointOfInterest = {
             id: uuidv4(),
@@ -158,7 +279,7 @@ export async function parseKmz(buffer: Buffer): Promise<{
           };
           poiMap.set(poiKey, poi);
         }
-        poiId = poiMap.get(poiKey)!.id;
+        poiId = poiMap.get(poiKey)?.id;
       }
     }
 
@@ -186,13 +307,23 @@ export async function parseKmz(buffer: Buffer): Promise<{
         ? parseFloat(pm["wpml:gimbalPitchAngle"])
         : undefined;
     if (gimbalPitchAngle == null) {
+      const gimbalHeadingParam = pm["wpml:waypointGimbalHeadingParam"];
+      if (gimbalHeadingParam?.["wpml:waypointGimbalPitchAngle"] != null) {
+        gimbalPitchAngle = parseFloat(
+          gimbalHeadingParam["wpml:waypointGimbalPitchAngle"],
+        );
+      }
+    }
+    if (gimbalPitchAngle == null) {
       // Look for a gimbalRotate action with pitch angle
       const gimbalAction = actions.find((a) => a.actionType === "gimbalRotate");
-      const gimbalParams = gimbalAction?.params as any;
-      if (gimbalParams?.["wpml:gimbalPitchRotateAngle"] != null) {
-        gimbalPitchAngle = parseFloat(
-          gimbalParams["wpml:gimbalPitchRotateAngle"],
-        );
+      const gimbalParams = gimbalAction?.params;
+      if (
+        gimbalParams !== undefined &&
+        "gimbalPitchRotateAngle" in gimbalParams &&
+        gimbalParams?.gimbalPitchRotateAngle != null
+      ) {
+        gimbalPitchAngle = gimbalParams.gimbalPitchRotateAngle;
       }
     }
 

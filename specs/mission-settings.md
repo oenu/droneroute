@@ -6,6 +6,7 @@ Configure your drone model, camera, altitude reference, and safety options for t
 
 - **Choose your drone model**: M300 RTK, M350 RTK, M30/M30T, M30 Dock, Mavic 3E/3T/3M/3D/3TD, Mini 4 Pro.
 - **Choose a camera/payload** available for the selected drone.
+- **See the flight app compatibility** for the selected drone: DJI Pilot/Pilot 2 or DJI Fly.
 - **Set a global flight speed** and takeoff security height.
 - **Choose a height reference**:
   - Relative to start point.
@@ -20,8 +21,14 @@ Configure your drone model, camera, altitude reference, and safety options for t
 
 1. Open the mission settings panel in the sidebar.
 2. Select your drone and camera.
-3. Adjust altitude reference, speeds, and safety options.
-4. The app uses these settings when exporting the mission file and when calculating flight time estimates.
+3. Check the flight app shown for that drone.
+4. Adjust altitude reference, speeds, and safety options.
+5. The app uses these settings when exporting the mission file and when calculating flight time estimates.
+
+## Good to know
+
+- DJI Fly drones use a different KMZ layout from DJI Pilot/Pilot 2 drones.
+- DroneRoute chooses the export layout from the selected drone model, not from the raw DJI enum values inside a KMZ file.
 
 ## Good to know
 

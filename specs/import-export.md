@@ -5,6 +5,7 @@ Bring in existing missions or export your planned flight as a file ready for DJI
 ## What you can do
 
 - **Export** a mission as a KMZ file compatible with DJI drones (WPML format).
+- **Export DJI Fly-compatible KMZ files** for consumer drones that use DJI Fly waypoint missions.
 - **Import** an existing KMZ file to load its waypoints, actions, POIs, and settings into the editor.
 
 ## How it works
@@ -13,7 +14,7 @@ Bring in existing missions or export your planned flight as a file ready for DJI
 
 1. Plan your mission in the editor.
 2. Click the export/download button.
-3. A KMZ file is generated and downloaded to your computer.
+3. A KMZ file is generated using the export layout for the selected drone's flight app.
 4. Load the KMZ onto your drone's controller (manually or using the upload tool).
 
 ### Importing
@@ -25,5 +26,6 @@ Bring in existing missions or export your planned flight as a file ready for DJI
 ## Good to know
 
 - The exported KMZ follows DJI's WPML standard, so it works with DJI's own flight apps too.
+- DJI Fly drones use a `wpmz/` KMZ layout that is different from DJI Pilot/Pilot 2 drones.
 - Imported missions may not look exactly the same if the original file used features not supported by DroneRoute.
 - The maximum import file size is 50 MB.

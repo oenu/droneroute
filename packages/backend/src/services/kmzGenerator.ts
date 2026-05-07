@@ -1,7 +1,13 @@
 import archiver from "archiver";
 import { PassThrough } from "stream";
 import type { Mission } from "@droneroute/shared";
-import { buildTemplateKml, buildWaylinesWpml } from "../lib/wpml.js";
+import { resolveKmzProfile } from "@droneroute/shared";
+import {
+  buildDjiFlyTemplateKml,
+  buildDjiFlyWaylinesWpml,
+  buildTemplateKml,
+  buildWaylinesWpml,
+} from "../lib/wpml.js";
 
 export function generateKmzBuffer(mission: Mission): Promise<Buffer> {
   return new Promise((resolve, reject) => {
@@ -15,16 +21,18 @@ export function generateKmzBuffer(mission: Mission): Promise<Buffer> {
 
     archive.pipe(passthrough);
 
-    // Add template.kml
-    const templateKml = buildTemplateKml(mission);
-    archive.append(templateKml, { name: "template.kml" });
-
-    // Add waylines.wpml
-    const waylinesWpml = buildWaylinesWpml(mission);
-    archive.append(waylinesWpml, { name: "waylines.wpml" });
-
-    // Add empty res/ directory
-    archive.append("", { name: "res/" });
+    if (resolveKmzProfile(mission.config) === "djiFly") {
+      archive.append(buildDjiFlyTemplateKml(mission), {
+        name: "wpmz/template.kml",
+      });
+      archive.append(buildDjiFlyWaylinesWpml(mission), {
+        name: "wpmz/waylines.wpml",
+      });
+    } else {
+      archive.append(buildTemplateKml(mission), { name: "template.kml" });
+      archive.append(buildWaylinesWpml(mission), { name: "waylines.wpml" });
+      archive.append("", { name: "res/" });
+    }
 
     archive.finalize();
   });

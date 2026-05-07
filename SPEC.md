@@ -47,10 +47,20 @@ mission.kmz
 └── res/              # Resources (reference images, etc.)
 ```
 
+DJI Fly-compatible exports use DJI Fly's `wpmz/` layout instead:
+
+```
+mission.kmz
+└── wpmz/
+    ├── template.kml
+    └── waylines.wpml
+```
+
 Both files use KML extended with DJI WPML namespace:
 
 - KML: `http://www.opengis.net/kml/2.2`
-- WPML: `http://www.dji.com/wpmz/1.0.2`
+- Standard WPML: `http://www.dji.com/wpmz/1.0.2`
+- DJI Fly WPML: `http://www.uav.com/wpmz/1.0.2`
 
 ### Supported Drones
 
@@ -67,7 +77,7 @@ Both files use KML extended with DJI WPML namespace:
 | DJI Mavic 3TD     | 91 (sub 1)     | M3TD Camera                      |
 | DJI Mini 4 Pro \* | 100            | Mini 4 Pro Camera                |
 
-\* Consumer drone; WPML format may not import into DJI Fly.
+\* Consumer drone; exports with the DJI Fly-compatible KMZ layout.
 
 ## Data Model
 
@@ -134,9 +144,11 @@ Reordering updates the `index` field and changes the flight path sequence.
 
 ```typescript
 interface MissionConfig {
+  droneModelId?: string; // Stable DroneRoute model ID, e.g. "mini-4-pro"
   droneEnumValue: number;
   droneSubEnumValue: number;
   payloadEnumValue: number;
+  kmzProfile?: "standardWpml" | "djiFly";
   flyToWaylineMode: "safely" | "pointToPoint";
   finishAction: "goHome" | "noAction" | "autoLand" | "gotoFirstWaypoint";
   exitOnRCLost: "goContinue" | "executeLostAction";
@@ -278,6 +290,10 @@ The backend generates a valid DJI WPML KMZ containing:
    heading, turn params, and computed POI angles
 3. **res/** - Empty resource directory
 
+For DJI Fly models, the backend generates `wpmz/template.kml` and
+`wpmz/waylines.wpml` with the DJI Fly namespace and keeps executable route
+details in `waylines.wpml`.
+
 When a waypoint uses `towardPOI` heading mode, the backend computes the
 bearing from the waypoint to the referenced POI and emits it as a
 `waypointPoiPoint` element with the POI's coordinates.
@@ -287,6 +303,7 @@ bearing from the waypoint to the referenced POI and emits it as a
 Upload a `.kmz` file to parse it back into editable mission data:
 
 - Extracts `template.kml` from the ZIP
+- Detects standard WPML and DJI Fly `wpmz/` layouts
 - Parses mission config, waypoints, and actions
 - Extracts POIs from `waypointPoiPoint` elements in per-waypoint heading params
 - De-duplicates POIs sharing the same coordinates

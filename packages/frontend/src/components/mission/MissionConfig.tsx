@@ -8,10 +8,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DRONE_MODELS } from "@droneroute/shared";
+import {
+  DRONE_MODELS,
+  getDroneModelById,
+  resolveDroneModel,
+} from "@droneroute/shared";
 import type {
   HeadingMode,
-  TurnMode,
   FinishAction,
   RCLostAction,
   HeightMode,
@@ -21,27 +24,29 @@ import type {
 export function MissionConfig() {
   const { config, setConfig } = useMissionStore();
 
-  const selectedDrone = DRONE_MODELS.find(
-    (d) =>
-      d.droneEnumValue === config.droneEnumValue &&
-      d.droneSubEnumValue === config.droneSubEnumValue,
-  );
+  const selectedDrone = resolveDroneModel(config);
+  const flightAppLabel = selectedDrone
+    ? selectedDrone.flightApp === "djiFly"
+      ? "DJI Fly"
+      : "DJI Pilot / Pilot 2"
+    : config.kmzProfile === "djiFly"
+      ? "DJI Fly (custom metadata)"
+      : "Custom metadata";
 
   return (
     <div className="p-3 space-y-3">
       <div>
         <Label className="text-xs">Drone model</Label>
         <Select
-          value={`${config.droneEnumValue}-${config.droneSubEnumValue}`}
+          value={selectedDrone?.id || "custom"}
           onValueChange={(v) => {
-            const [drone, sub] = v.split("-").map(Number);
-            const model = DRONE_MODELS.find(
-              (d) => d.droneEnumValue === drone && d.droneSubEnumValue === sub,
-            );
+            const model = getDroneModelById(v);
             if (model) {
               setConfig({
+                droneModelId: model.id,
                 droneEnumValue: model.droneEnumValue,
                 droneSubEnumValue: model.droneSubEnumValue,
+                kmzProfile: model.kmzProfile,
                 payloadEnumValue: model.payloads[0]?.payloadEnumValue || 0,
               });
             }
@@ -51,16 +56,21 @@ export function MissionConfig() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            {!selectedDrone && (
+              <SelectItem value="custom" disabled>
+                Custom drone
+              </SelectItem>
+            )}
             {DRONE_MODELS.map((d) => (
-              <SelectItem
-                key={`${d.droneEnumValue}-${d.droneSubEnumValue}`}
-                value={`${d.droneEnumValue}-${d.droneSubEnumValue}`}
-              >
+              <SelectItem key={d.id} value={d.id}>
                 {d.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        <div className="text-[10px] text-muted-foreground mt-0.5">
+          Flight app: {flightAppLabel}
+        </div>
       </div>
 
       {selectedDrone && selectedDrone.payloads.length > 1 && (

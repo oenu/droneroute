@@ -260,7 +260,7 @@ Open the **Mission config** section in the sidebar to configure global mission p
 
 | Setting              | Description                                                                                       |
 | -------------------- | ------------------------------------------------------------------------------------------------- |
-| **Drone Model**      | Select your DJI drone. This determines the KMZ metadata and available payloads                    |
+| **Drone Model**      | Select your DJI drone. This determines the KMZ metadata, flight app compatibility, and payloads   |
 | **Payload**          | Camera/sensor selection (appears when the drone supports multiple payloads)                       |
 | **Flight Speed**     | Default speed for all waypoints using global speed (m/s)                                          |
 | **Takeoff Height**   | Security height the drone climbs to before flying to the first waypoint                           |
@@ -310,8 +310,10 @@ Below the waypoint list, an elevation graph shows the altitude profile of your m
 
 Click the **KMZ** button in the toolbar to download a `.kmz` file. This file follows the DJI WPML (Waypoint Markup Language) specification and contains:
 
-- `template.kml` — mission template with all waypoint data and configuration
-- `waylines.wpml` — the executable wayline file the DJI controller uses to fly
+- `template.kml` and `waylines.wpml` for DJI Pilot/Pilot 2 drones
+- `wpmz/template.kml` and `wpmz/waylines.wpml` for DJI Fly drones
+
+DroneRoute chooses the layout from the selected drone model, not from the raw DJI enum values inside a file.
 
 **Requirements:** You need at least 2 waypoints to export.
 
@@ -401,6 +403,7 @@ To stop sharing a mission, open **My routes** and click the **unshare** button (
 | **DJI Mini 4 Pro** | Mini 4 Pro Camera                |
 
 The PSDK (Payload SDK) option on M300/M350 represents third-party payloads.
+The DJI Mini 4 Pro exports using the DJI Fly-compatible KMZ layout.
 
 ---
 
