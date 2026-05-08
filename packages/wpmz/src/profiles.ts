@@ -12,11 +12,7 @@ export const DJI_WPML_PROFILE: WpmzProfile = {
   waylineHeightModeElement: "executeHeightMode",
 };
 
-/**
- * Profile observed in DJI Fly-style waypoint KMZs from the uploaded Lito X1 sample.
- * The key differences are the uav.com WPML namespace, minimal template.kml, seconds timestamps,
- * and wayline-level executeHeightMode/distance/duration fields.
- */
+// DJI Fly / UAV variant: uav.com namespace, seconds timestamps, minimal template, always includes distance/duration.
 export const DJI_FLY_UAV_PROFILE: WpmzProfile = {
   id: "dji-fly-uav",
   kmlNamespace: "http://www.opengis.net/kml/2.2",
@@ -43,9 +39,11 @@ export function inferProfileFromNamespaces(
 }
 
 export function inferProfileFromFiles(files: Partial<WpmzFiles>): WpmzProfile {
-  const source = `${files.templateKml ?? ""}\n${files.waylinesWpml ?? ""}`;
-  const wpmlNamespace = source.match(/xmlns:wpml\s*=\s*["']([^"']+)["']/u)?.[1];
-  return inferProfileFromNamespaces(wpmlNamespace);
+  const NS_RE = /xmlns:wpml\s*=\s*["']([^"']+)["']/u;
+  const namespace =
+    files.templateKml?.match(NS_RE)?.[1] ??
+    files.waylinesWpml?.match(NS_RE)?.[1];
+  return inferProfileFromNamespaces(namespace);
 }
 
 export function profileForDocument(

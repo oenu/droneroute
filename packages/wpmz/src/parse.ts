@@ -56,11 +56,6 @@ const MISSION_KNOWN = new Set([
   "droneInfo",
   "payloadInfo",
 ]);
-const DRONE_INFO_KNOWN = new Set(["droneEnumValue", "droneSubEnumValue"]);
-const PAYLOAD_INFO_KNOWN = new Set([
-  "payloadEnumValue",
-  "payloadPositionIndex",
-]);
 const COORD_SYS_KNOWN = new Set([
   "coordinateMode",
   "heightMode",
@@ -271,6 +266,7 @@ function parseMissionConfig(element: XmlElement | undefined): MissionConfig {
   });
 }
 
+const DRONE_INFO_KNOWN = new Set(["droneEnumValue", "droneSubEnumValue"]);
 function parseDroneInfo(
   element: XmlElement | undefined,
 ): DroneInfo | undefined {
@@ -282,6 +278,10 @@ function parseDroneInfo(
   });
 }
 
+const PAYLOAD_INFO_KNOWN = new Set([
+  "payloadEnumValue",
+  "payloadPositionIndex",
+]);
 function parsePayloadInfo(
   element: XmlElement | undefined,
 ): PayloadInfo | undefined {
@@ -507,14 +507,14 @@ function mergeMissionConfig(
   templateConfig: MissionConfig,
   waylinesConfig: MissionConfig,
 ): MissionConfig {
-  const droneInfo = mergeNested(
-    templateConfig.droneInfo,
-    waylinesConfig.droneInfo,
-  );
-  const payloadInfo = mergeNested(
-    templateConfig.payloadInfo,
-    waylinesConfig.payloadInfo,
-  );
+  const droneInfo =
+    templateConfig.droneInfo && waylinesConfig.droneInfo
+      ? { ...templateConfig.droneInfo, ...waylinesConfig.droneInfo }
+      : (templateConfig.droneInfo ?? waylinesConfig.droneInfo);
+  const payloadInfo =
+    templateConfig.payloadInfo && waylinesConfig.payloadInfo
+      ? { ...templateConfig.payloadInfo, ...waylinesConfig.payloadInfo }
+      : (templateConfig.payloadInfo ?? waylinesConfig.payloadInfo);
   return compactObject({
     ...templateConfig,
     ...waylinesConfig,
@@ -525,13 +525,4 @@ function mergeMissionConfig(
       ...(waylinesConfig.extraElements ?? []),
     ],
   });
-}
-
-function mergeNested<T extends object>(
-  a: T | undefined,
-  b: T | undefined,
-): T | undefined {
-  if (!a) return b;
-  if (!b) return a;
-  return { ...a, ...b };
 }

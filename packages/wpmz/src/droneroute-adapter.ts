@@ -1,17 +1,20 @@
-import { DJI_FLY_UAV_PROFILE, DJI_WPML_PROFILE } from "./profiles.js";
+import { DJI_WPML_PROFILE } from "./profiles.js";
 import type {
   ActionGroup,
   Coordinate,
+  ExitOnRCLost,
   ExecuteHeightMode,
   FinishAction,
   FlyToWaylineMode,
   HeadingMode,
   HeightMode,
   RCLostAction,
+  TemplateWaypoint,
   TurnMode,
   WpmzAction,
   WpmzDocument,
   WpmzProfile,
+  WpmzWaypoint,
 } from "./types.js";
 
 export interface DroneRouteMissionLike {
@@ -30,7 +33,7 @@ export interface DroneRouteMissionConfigLike {
   readonly payloadEnumValue?: number;
   readonly flyToWaylineMode: FlyToWaylineMode;
   readonly finishAction: FinishAction;
-  readonly exitOnRCLost: "goContinue" | "executeLostAction" | (string & {});
+  readonly exitOnRCLost: ExitOnRCLost;
   readonly executeRCLostAction: RCLostAction;
   readonly takeOffSecurityHeight?: number;
   readonly globalTransitionalSpeed: number;
@@ -158,33 +161,13 @@ export function fromDroneRouteMission(
             },
             globalWaypointTurnMode: mission.config.globalTurnMode,
             globalUseStraightLine: false,
-            waypoints: mission.waypoints.map((waypoint, i) => ({
-              index: waypoint.index,
-              coordinate: {
-                longitude: waypoint.longitude,
-                latitude: waypoint.latitude,
-              },
-              ellipsoidHeight: waypoint.height,
-              height: waypoint.height,
-              useGlobalHeight: waypoint.useGlobalHeight ?? false,
-              useGlobalSpeed: waypoint.useGlobalSpeed ?? true,
-              waypointSpeed: waypoint.speed,
-              useGlobalHeadingParam: waypoint.useGlobalHeadingParam ?? true,
-              waypointHeadingParam: buildHeadingParam(
+            waypoints: mission.waypoints.map((waypoint, i) =>
+              buildTemplateWaypoint(
                 waypoint,
-                mission.pois,
-                mission.config.globalHeadingMode,
+                waypointActionGroups[i] ?? [],
+                mission,
               ),
-              useGlobalTurnParam: waypoint.useGlobalTurnParam ?? true,
-              waypointTurnParam: {
-                waypointTurnMode:
-                  waypoint.turnMode ?? mission.config.globalTurnMode,
-                waypointTurnDampingDist: waypoint.turnDampingDist ?? 0,
-              },
-              useStraightLine: waypoint.useStraightLine ?? false,
-              gimbalPitchAngle: waypoint.gimbalPitchAngle ?? 0,
-              actionGroups: waypointActionGroups[i] ?? [],
-            })),
+            ),
           }
         : undefined,
     waylines: [
@@ -192,41 +175,84 @@ export function fromDroneRouteMission(
         templateId,
         executeHeightMode: toExecuteHeightMode(mission.config.heightMode),
         waylineId,
-        distance: profile === DJI_FLY_UAV_PROFILE ? 0 : undefined,
-        duration: profile === DJI_FLY_UAV_PROFILE ? 0 : undefined,
+        distance:
+          profile.includeWaylineDistanceDuration === "always" ? 0 : undefined,
+        duration:
+          profile.includeWaylineDistanceDuration === "always" ? 0 : undefined,
         autoFlightSpeed: mission.config.autoFlightSpeed,
-        waypoints: mission.waypoints.map((waypoint, i) => ({
-          index: waypoint.index,
-          coordinate: {
-            longitude: waypoint.longitude,
-            latitude: waypoint.latitude,
-          },
-          executeHeight: waypoint.height,
-          waypointSpeed:
-            waypoint.useGlobalSpeed === false
-              ? waypoint.speed
-              : mission.config.autoFlightSpeed,
-          waypointHeadingParam: buildHeadingParam(
+        waypoints: mission.waypoints.map((waypoint, i) =>
+          buildWaylineWaypoint(
             waypoint,
-            mission.pois,
-            mission.config.globalHeadingMode,
+            waypointActionGroups[i] ?? [],
+            mission,
           ),
-          waypointTurnParam: {
-            waypointTurnMode:
-              waypoint.useGlobalTurnParam === false
-                ? (waypoint.turnMode ?? mission.config.globalTurnMode)
-                : mission.config.globalTurnMode,
-            waypointTurnDampingDist: waypoint.turnDampingDist ?? 0,
-          },
-          useStraightLine: waypoint.useStraightLine ?? false,
-          waypointGimbalHeadingParam: {
-            waypointGimbalPitchAngle: waypoint.gimbalPitchAngle ?? 0,
-            waypointGimbalYawAngle: 0,
-          },
-          actionGroups: waypointActionGroups[i] ?? [],
-        })),
+        ),
       },
     ],
+  };
+}
+
+function buildTemplateWaypoint(
+  waypoint: DroneRouteWaypointLike,
+  actionGroups: readonly ActionGroup[],
+  mission: DroneRouteMissionLike,
+): TemplateWaypoint {
+  return {
+    index: waypoint.index,
+    coordinate: { longitude: waypoint.longitude, latitude: waypoint.latitude },
+    ellipsoidHeight: waypoint.height,
+    height: waypoint.height,
+    useGlobalHeight: waypoint.useGlobalHeight ?? false,
+    useGlobalSpeed: waypoint.useGlobalSpeed ?? true,
+    waypointSpeed: waypoint.speed,
+    useGlobalHeadingParam: waypoint.useGlobalHeadingParam ?? true,
+    waypointHeadingParam: buildHeadingParam(
+      waypoint,
+      mission.pois,
+      mission.config.globalHeadingMode,
+    ),
+    useGlobalTurnParam: waypoint.useGlobalTurnParam ?? true,
+    waypointTurnParam: {
+      waypointTurnMode: waypoint.turnMode ?? mission.config.globalTurnMode,
+      waypointTurnDampingDist: waypoint.turnDampingDist ?? 0,
+    },
+    useStraightLine: waypoint.useStraightLine ?? false,
+    gimbalPitchAngle: waypoint.gimbalPitchAngle ?? 0,
+    actionGroups,
+  };
+}
+
+function buildWaylineWaypoint(
+  waypoint: DroneRouteWaypointLike,
+  actionGroups: readonly ActionGroup[],
+  mission: DroneRouteMissionLike,
+): WpmzWaypoint {
+  return {
+    index: waypoint.index,
+    coordinate: { longitude: waypoint.longitude, latitude: waypoint.latitude },
+    executeHeight: waypoint.height,
+    waypointSpeed:
+      waypoint.useGlobalSpeed === false
+        ? waypoint.speed
+        : mission.config.autoFlightSpeed,
+    waypointHeadingParam: buildHeadingParam(
+      waypoint,
+      mission.pois,
+      mission.config.globalHeadingMode,
+    ),
+    waypointTurnParam: {
+      waypointTurnMode:
+        waypoint.useGlobalTurnParam === false
+          ? (waypoint.turnMode ?? mission.config.globalTurnMode)
+          : mission.config.globalTurnMode,
+      waypointTurnDampingDist: waypoint.turnDampingDist ?? 0,
+    },
+    useStraightLine: waypoint.useStraightLine ?? false,
+    waypointGimbalHeadingParam: {
+      waypointGimbalPitchAngle: waypoint.gimbalPitchAngle ?? 0,
+      waypointGimbalYawAngle: 0,
+    },
+    actionGroups,
   };
 }
 

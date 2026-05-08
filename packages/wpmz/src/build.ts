@@ -120,11 +120,9 @@ function metadataElements(
   const createTime = metadata.createTime ?? nowForProfile(profile);
   const updateTime = metadata.updateTime ?? createTime;
   return compactNodes([
-    metadata.author !== undefined
-      ? wpText("author", metadata.author)
-      : undefined,
-    wpText("createTime", createTime),
-    wpText("updateTime", updateTime),
+    wpmlTextIf("author", metadata.author),
+    wpmlText("createTime", createTime),
+    wpmlText("updateTime", updateTime),
     ...(metadata.extraElements ?? []),
   ]);
 }
@@ -133,35 +131,33 @@ function missionConfigElement(
   config: MissionConfig,
   profile: WpmzProfile,
 ): XmlElement {
-  const includePayload =
-    profile.includePayloadInfo === "always" ||
-    (profile.includePayloadInfo === "when-present" && config.payloadInfo);
-  const includeTakeoff =
-    profile.includeTakeOffSecurityHeight === "always" ||
-    (profile.includeTakeOffSecurityHeight === "when-present" &&
-      config.takeOffSecurityHeight !== undefined);
+  const includePayload = shouldInclude(
+    profile.includePayloadInfo,
+    config.payloadInfo !== undefined,
+  );
+  const includeTakeoff = shouldInclude(
+    profile.includeTakeOffSecurityHeight,
+    config.takeOffSecurityHeight !== undefined,
+  );
 
   return makeElement(
     "wpml:missionConfig",
     compactNodes([
-      textIfDefined("flyToWaylineMode", config.flyToWaylineMode),
-      textIfDefined("finishAction", config.finishAction),
-      textIfDefined("exitOnRCLost", config.exitOnRCLost),
-      textIfDefined("executeRCLostAction", config.executeRCLostAction),
+      wpmlTextIf("flyToWaylineMode", config.flyToWaylineMode),
+      wpmlTextIf("finishAction", config.finishAction),
+      wpmlTextIf("exitOnRCLost", config.exitOnRCLost),
+      wpmlTextIf("executeRCLostAction", config.executeRCLostAction),
       includeTakeoff
-        ? wpText("takeOffSecurityHeight", config.takeOffSecurityHeight ?? 20)
+        ? wpmlText("takeOffSecurityHeight", config.takeOffSecurityHeight ?? 20)
         : undefined,
       config.takeOffRefPoint
-        ? wpText(
+        ? wpmlText(
             "takeOffRefPoint",
             formatLatLonAltCoordinate(config.takeOffRefPoint),
           )
         : undefined,
-      textIfDefined(
-        "takeOffRefPointAGLHeight",
-        config.takeOffRefPointAGLHeight,
-      ),
-      textIfDefined("globalTransitionalSpeed", config.globalTransitionalSpeed),
+      wpmlTextIf("takeOffRefPointAGLHeight", config.takeOffRefPointAGLHeight),
+      wpmlTextIf("globalTransitionalSpeed", config.globalTransitionalSpeed),
       config.droneInfo ? droneInfoElement(config.droneInfo) : undefined,
       includePayload && config.payloadInfo
         ? payloadInfoElement(config.payloadInfo)
@@ -175,8 +171,8 @@ function droneInfoElement(info: DroneInfo): XmlElement {
   return makeElement(
     "wpml:droneInfo",
     compactNodes([
-      textIfDefined("droneEnumValue", info.droneEnumValue),
-      textIfDefined("droneSubEnumValue", info.droneSubEnumValue),
+      wpmlTextIf("droneEnumValue", info.droneEnumValue),
+      wpmlTextIf("droneSubEnumValue", info.droneSubEnumValue),
       ...(info.extraElements ?? []),
     ]),
   );
@@ -186,8 +182,8 @@ function payloadInfoElement(info: PayloadInfo): XmlElement {
   return makeElement(
     "wpml:payloadInfo",
     compactNodes([
-      textIfDefined("payloadEnumValue", info.payloadEnumValue),
-      textIfDefined("payloadPositionIndex", info.payloadPositionIndex),
+      wpmlTextIf("payloadEnumValue", info.payloadEnumValue),
+      wpmlTextIf("payloadPositionIndex", info.payloadPositionIndex),
       ...(info.extraElements ?? []),
     ]),
   );
@@ -199,12 +195,12 @@ function coordinateSysParamElement(
   return makeElement(
     "wpml:waylineCoordinateSysParam",
     compactNodes([
-      textIfDefined("coordinateMode", param.coordinateMode),
-      textIfDefined("heightMode", param.heightMode),
-      textIfDefined("globalShootHeight", param.globalShootHeight),
-      textIfDefined("positioningType", param.positioningType),
-      boolIfDefined("surfaceFollowModeEnable", param.surfaceFollowModeEnable),
-      textIfDefined("surfaceRelativeHeight", param.surfaceRelativeHeight),
+      wpmlTextIf("coordinateMode", param.coordinateMode),
+      wpmlTextIf("heightMode", param.heightMode),
+      wpmlTextIf("globalShootHeight", param.globalShootHeight),
+      wpmlTextIf("positioningType", param.positioningType),
+      wpmlTextIf("surfaceFollowModeEnable", param.surfaceFollowModeEnable),
+      wpmlTextIf("surfaceRelativeHeight", param.surfaceRelativeHeight),
       ...(param.extraElements ?? []),
     ]),
   );
@@ -214,22 +210,22 @@ function templateFolderElement(folder: TemplateFolder): XmlElement {
   return makeElement(
     "Folder",
     compactNodes([
-      textIfDefined("templateType", folder.templateType),
-      textIfDefined("templateId", folder.templateId),
+      wpmlTextIf("templateType", folder.templateType),
+      wpmlTextIf("templateId", folder.templateId),
       folder.waylineCoordinateSysParam
         ? coordinateSysParamElement(folder.waylineCoordinateSysParam)
         : undefined,
-      textIfDefined("autoFlightSpeed", folder.autoFlightSpeed),
-      textIfDefined("gimbalPitchMode", folder.gimbalPitchMode),
+      wpmlTextIf("autoFlightSpeed", folder.autoFlightSpeed),
+      wpmlTextIf("gimbalPitchMode", folder.gimbalPitchMode),
       folder.globalWaypointHeadingParam
         ? headingParamElement(
             "globalWaypointHeadingParam",
             folder.globalWaypointHeadingParam,
           )
         : undefined,
-      textIfDefined("globalWaypointTurnMode", folder.globalWaypointTurnMode),
-      boolIfDefined("globalUseStraightLine", folder.globalUseStraightLine),
-      textIfDefined("globalHeight", folder.globalHeight),
+      wpmlTextIf("globalWaypointTurnMode", folder.globalWaypointTurnMode),
+      wpmlTextIf("globalUseStraightLine", folder.globalUseStraightLine),
+      wpmlTextIf("globalHeight", folder.globalHeight),
       ...(folder.extraElements ?? []),
       ...folder.waypoints.map(templateWaypointElement),
     ]),
@@ -241,27 +237,27 @@ function templateWaypointElement(waypoint: TemplateWaypoint): XmlElement {
     "Placemark",
     compactNodes([
       pointElement(waypoint.coordinate),
-      wpText("index", waypoint.index),
-      textIfDefined("ellipsoidHeight", waypoint.ellipsoidHeight),
-      textIfDefined("height", waypoint.height),
-      boolIfDefined("useGlobalHeight", waypoint.useGlobalHeight),
-      boolIfDefined("useGlobalSpeed", waypoint.useGlobalSpeed),
-      textIfDefined("waypointSpeed", waypoint.waypointSpeed),
-      boolIfDefined("useGlobalHeadingParam", waypoint.useGlobalHeadingParam),
+      wpmlText("index", waypoint.index),
+      wpmlTextIf("ellipsoidHeight", waypoint.ellipsoidHeight),
+      wpmlTextIf("height", waypoint.height),
+      wpmlTextIf("useGlobalHeight", waypoint.useGlobalHeight),
+      wpmlTextIf("useGlobalSpeed", waypoint.useGlobalSpeed),
+      wpmlTextIf("waypointSpeed", waypoint.waypointSpeed),
+      wpmlTextIf("useGlobalHeadingParam", waypoint.useGlobalHeadingParam),
       waypoint.waypointHeadingParam
         ? headingParamElement(
             "waypointHeadingParam",
             waypoint.waypointHeadingParam,
           )
         : undefined,
-      boolIfDefined("useGlobalTurnParam", waypoint.useGlobalTurnParam),
+      wpmlTextIf("useGlobalTurnParam", waypoint.useGlobalTurnParam),
       waypoint.waypointTurnParam
         ? turnParamElement(waypoint.waypointTurnParam)
         : undefined,
-      boolIfDefined("useStraightLine", waypoint.useStraightLine),
-      textIfDefined("gimbalPitchAngle", waypoint.gimbalPitchAngle),
+      wpmlTextIf("useStraightLine", waypoint.useStraightLine),
+      wpmlTextIf("gimbalPitchAngle", waypoint.gimbalPitchAngle),
       ...(waypoint.extraElements ?? []),
-      ...waypoint.actionGroups.map(actionGroupElement),
+      ...waypoint.actionGroups.map((g) => actionGroupElement(g)),
     ]),
   );
 }
@@ -270,31 +266,31 @@ function waylineFolderElement(
   folder: WaylineFolder,
   profile: WpmzProfile,
 ): XmlElement {
-  const includeDistance =
-    profile.includeWaylineDistanceDuration === "always" ||
-    (profile.includeWaylineDistanceDuration === "when-present" &&
-      folder.distance !== undefined);
-  const includeDuration =
-    profile.includeWaylineDistanceDuration === "always" ||
-    (profile.includeWaylineDistanceDuration === "when-present" &&
-      folder.duration !== undefined);
+  const includeDistance = shouldInclude(
+    profile.includeWaylineDistanceDuration,
+    folder.distance !== undefined,
+  );
+  const includeDuration = shouldInclude(
+    profile.includeWaylineDistanceDuration,
+    folder.duration !== undefined,
+  );
   return makeElement(
     "Folder",
     compactNodes([
-      textIfDefined("templateId", folder.templateId),
+      wpmlTextIf("templateId", folder.templateId),
       profile.waylineHeightModeElement === "executeHeightMode"
-        ? textIfDefined("executeHeightMode", folder.executeHeightMode)
+        ? wpmlTextIf("executeHeightMode", folder.executeHeightMode)
         : undefined,
-      textIfDefined("waylineId", folder.waylineId),
-      includeDistance ? wpText("distance", folder.distance ?? 0) : undefined,
-      includeDuration ? wpText("duration", folder.duration ?? 0) : undefined,
-      textIfDefined("autoFlightSpeed", folder.autoFlightSpeed),
+      wpmlTextIf("waylineId", folder.waylineId),
+      includeDistance ? wpmlText("distance", folder.distance ?? 0) : undefined,
+      includeDuration ? wpmlText("duration", folder.duration ?? 0) : undefined,
+      wpmlTextIf("autoFlightSpeed", folder.autoFlightSpeed),
       profile.waylineHeightModeElement === "waylineCoordinateSysParam" &&
       folder.waylineCoordinateSysParam
         ? coordinateSysParamElement(folder.waylineCoordinateSysParam)
         : undefined,
       ...(folder.startActionGroups ?? []).map((group) =>
-        withName(actionGroupElement(group), "wpml:startActionGroup"),
+        actionGroupElement(group, "wpml:startActionGroup"),
       ),
       ...(folder.extraElements ?? []),
       ...folder.waypoints.map(waylineWaypointElement),
@@ -309,9 +305,9 @@ function waylineWaypointElement(
     "Placemark",
     compactNodes([
       pointElement(waypoint.coordinate),
-      wpText("index", waypoint.index),
-      textIfDefined("executeHeight", waypoint.executeHeight),
-      textIfDefined("waypointSpeed", waypoint.waypointSpeed),
+      wpmlText("index", waypoint.index),
+      wpmlTextIf("executeHeight", waypoint.executeHeight),
+      wpmlTextIf("waypointSpeed", waypoint.waypointSpeed),
       waypoint.waypointHeadingParam
         ? headingParamElement(
             "waypointHeadingParam",
@@ -321,9 +317,9 @@ function waylineWaypointElement(
       waypoint.waypointTurnParam
         ? turnParamElement(waypoint.waypointTurnParam)
         : undefined,
-      boolIfDefined("useStraightLine", waypoint.useStraightLine),
+      wpmlTextIf("useStraightLine", waypoint.useStraightLine),
       ...(waypoint.extraElements ?? []),
-      ...waypoint.actionGroups.map(actionGroupElement),
+      ...waypoint.actionGroups.map((g) => actionGroupElement(g)),
       waypoint.waypointGimbalHeadingParam
         ? gimbalHeadingParamElement(waypoint.waypointGimbalHeadingParam)
         : undefined,
@@ -351,20 +347,20 @@ function headingParamElement(
   return makeElement(
     `wpml:${localTagName}`,
     compactNodes([
-      textIfDefined("waypointHeadingMode", param.waypointHeadingMode),
-      textIfDefined("waypointHeadingAngle", param.waypointHeadingAngle),
+      wpmlTextIf("waypointHeadingMode", param.waypointHeadingMode),
+      wpmlTextIf("waypointHeadingAngle", param.waypointHeadingAngle),
       param.waypointPoiPoint
-        ? wpText(
+        ? wpmlText(
             "waypointPoiPoint",
             formatLatLonAltCoordinate(param.waypointPoiPoint),
           )
         : undefined,
-      boolIfDefined(
+      wpmlTextIf(
         "waypointHeadingAngleEnable",
         param.waypointHeadingAngleEnable,
       ),
-      textIfDefined("waypointHeadingPathMode", param.waypointHeadingPathMode),
-      textIfDefined("waypointHeadingPoiIndex", param.waypointHeadingPoiIndex),
+      wpmlTextIf("waypointHeadingPathMode", param.waypointHeadingPathMode),
+      wpmlTextIf("waypointHeadingPoiIndex", param.waypointHeadingPoiIndex),
       ...(param.extraElements ?? []),
     ]),
   );
@@ -374,8 +370,8 @@ function turnParamElement(param: WaypointTurnParam): XmlElement {
   return makeElement(
     "wpml:waypointTurnParam",
     compactNodes([
-      textIfDefined("waypointTurnMode", param.waypointTurnMode),
-      textIfDefined("waypointTurnDampingDist", param.waypointTurnDampingDist),
+      wpmlTextIf("waypointTurnMode", param.waypointTurnMode),
+      wpmlTextIf("waypointTurnDampingDist", param.waypointTurnDampingDist),
       ...(param.extraElements ?? []),
     ]),
   );
@@ -387,21 +383,24 @@ function gimbalHeadingParamElement(
   return makeElement(
     "wpml:waypointGimbalHeadingParam",
     compactNodes([
-      textIfDefined("waypointGimbalPitchAngle", param.waypointGimbalPitchAngle),
-      textIfDefined("waypointGimbalYawAngle", param.waypointGimbalYawAngle),
+      wpmlTextIf("waypointGimbalPitchAngle", param.waypointGimbalPitchAngle),
+      wpmlTextIf("waypointGimbalYawAngle", param.waypointGimbalYawAngle),
       ...(param.extraElements ?? []),
     ]),
   );
 }
 
-function actionGroupElement(group: ActionGroup): XmlElement {
+function actionGroupElement(
+  group: ActionGroup,
+  tagName = "wpml:actionGroup",
+): XmlElement {
   return makeElement(
-    "wpml:actionGroup",
+    tagName,
     compactNodes([
-      textIfDefined("actionGroupId", group.actionGroupId),
-      textIfDefined("actionGroupStartIndex", group.actionGroupStartIndex),
-      textIfDefined("actionGroupEndIndex", group.actionGroupEndIndex),
-      textIfDefined("actionGroupMode", group.actionGroupMode),
+      wpmlTextIf("actionGroupId", group.actionGroupId),
+      wpmlTextIf("actionGroupStartIndex", group.actionGroupStartIndex),
+      wpmlTextIf("actionGroupEndIndex", group.actionGroupEndIndex),
+      wpmlTextIf("actionGroupMode", group.actionGroupMode),
       group.actionTrigger
         ? actionTriggerElement(group.actionTrigger)
         : undefined,
@@ -415,8 +414,8 @@ function actionTriggerElement(trigger: ActionTrigger): XmlElement {
   return makeElement(
     "wpml:actionTrigger",
     compactNodes([
-      textIfDefined("actionTriggerType", trigger.actionTriggerType),
-      textIfDefined("actionTriggerParam", trigger.actionTriggerParam),
+      wpmlTextIf("actionTriggerType", trigger.actionTriggerType),
+      wpmlTextIf("actionTriggerParam", trigger.actionTriggerParam),
       ...(trigger.extraElements ?? []),
     ]),
   );
@@ -426,8 +425,8 @@ function actionElement(action: WpmzAction): XmlElement {
   return makeElement(
     "wpml:action",
     compactNodes([
-      textIfDefined("actionId", action.actionId),
-      wpText("actionActuatorFunc", action.actionActuatorFunc),
+      wpmlTextIf("actionId", action.actionId),
+      wpmlText("actionActuatorFunc", action.actionActuatorFunc),
       makeElement("wpml:actionActuatorFuncParam", actionParamElements(action)),
       ...(action.extraElements ?? []),
     ]),
@@ -438,38 +437,31 @@ function actionParamElements(action: WpmzAction): readonly XmlNode[] {
   if (action.paramElements && action.paramElements.length > 0)
     return action.paramElements;
   return Object.entries(action.params).map(([key, value]) =>
-    wpText(key, value),
+    wpmlText(key, value),
   );
 }
 
-function textIfDefined(
-  localTagName: string,
-  value: string | number | undefined,
-): XmlElement | undefined {
-  if (value === undefined) return undefined;
-  return wpText(
-    localTagName,
-    typeof value === "number" ? formatNumber(value) : value,
-  );
-}
-
-function boolIfDefined(
-  localTagName: string,
-  value: boolean | undefined,
-): XmlElement | undefined {
-  if (value === undefined) return undefined;
-  return wpText(localTagName, value ? 1 : 0);
-}
-
-function wpText(
+function wpmlText(
   localTagName: string,
   value: string | number | boolean,
 ): XmlElement {
+  if (typeof value === "number")
+    return makeTextElement(`wpml:${localTagName}`, formatNumber(value));
   return makeTextElement(`wpml:${localTagName}`, value);
 }
 
-function withName(element: XmlElement, name: string): XmlElement {
-  return makeElement(name, element.children, element.attributes);
+function wpmlTextIf(
+  localTagName: string,
+  value: string | number | boolean | undefined,
+): XmlElement | undefined {
+  return value !== undefined ? wpmlText(localTagName, value) : undefined;
+}
+
+function shouldInclude(
+  policy: "always" | "when-present" | "never",
+  isPresent: boolean,
+): boolean {
+  return policy === "always" || (policy === "when-present" && isPresent);
 }
 
 function compactNodes(nodes: readonly (XmlNode | undefined)[]): XmlNode[] {

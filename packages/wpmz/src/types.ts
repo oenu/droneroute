@@ -236,10 +236,7 @@ export interface WpmzDocument {
   readonly templateFolder?: TemplateFolder;
   readonly waylines: readonly WaylineFolder[];
   /** Original files are kept so callers can diff or choose exact pass-through behavior. */
-  readonly original?: {
-    readonly templateKml?: string;
-    readonly waylinesWpml?: string;
-  };
+  readonly original?: Partial<WpmzFiles>;
 }
 
 export type WpmzProfileId = "dji-wpml" | "dji-fly-uav" | "custom";
